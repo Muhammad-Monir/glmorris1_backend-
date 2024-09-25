@@ -21,4 +21,9 @@ class Item extends Model
     {
         return $this->belongsTo(Room::class);
     }
+
+    public function sections()
+    {
+        return $this->hasMany(Section::class);
+    }
 }
