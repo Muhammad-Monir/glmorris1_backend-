@@ -4,6 +4,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\SocialAuthController;
+use App\Http\Controllers\Api\Backend\DataController;
+use App\Http\Controllers\Api\Backend\LocationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -42,6 +44,14 @@ Route::group(['middleware' => 'jwt.auth'], function() {
     Route::post('/update-password', [AuthController::class, 'updatePassword']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/refresh', [AuthController::class, 'refresh']);
+
+    Route::post('/location/create', [LocationController::class, 'store']);
+    Route::get('/location/show', [LocationController::class, 'show']);
+
+    Route::get('/data/show/{id}', [DataController::class, 'show']);
+    Route::post('/data/store', [DataController::class, 'store']);
+    Route::post('/data/update/{id}', [DataController::class, 'update']);
+    Route::delete('/data/delete/{id}', [DataController::class, 'destroy']);
 });
 
 
