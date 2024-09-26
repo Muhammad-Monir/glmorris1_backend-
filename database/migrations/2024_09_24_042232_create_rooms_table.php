@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('location_id')->constrained('locations')->onDelete('cascade');
             $table->string('room_name');
-            $table->string('photo')->nullable(); 
+            $table->longtext('photo')->nullable(); 
             $table->timestamps();
         });
     }

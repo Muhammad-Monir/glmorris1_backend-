@@ -52,7 +52,7 @@ class DataController extends Controller
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Room not found',
+                'message' => 'Data not found',
                 'error' => $e->getMessage(),
             ], 404);
         }
@@ -66,11 +66,11 @@ class DataController extends Controller
                 'message' => 'Request body is empty. Please provide data.',
             ], 400);
         }
-
+        
         $validator = Validator::make($request->all(), [
             '*.location_id' => 'required|exists:locations,id',
             '*.room_name' => 'required|string|max:255',
-            '*.photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:4096',
+            '*.photo' => 'nullable|string', 
             '*.items' => 'required|array',
             '*.items.*.pointer_name' => 'required|string|max:255',
             '*.items.*.offset.x' => 'required|numeric',
@@ -98,9 +98,7 @@ class DataController extends Controller
                 $room->room_name = $roomData['room_name'];
 
                 if (isset($roomData['photo']) && $roomData['photo']) {
-                    $randomString = (string) Str::uuid();
-                    $roomPhoto = Helper::fileUpload($roomData['photo'], 'rooms', $roomData['photo']->getClientOriginalName() . '_' . $randomString);
-                    $room->photo = $roomPhoto;
+                    $room->photo = $this->saveBase64Image($roomData['photo'], 'rooms');
                 }
 
                 $room->save();
@@ -111,14 +109,12 @@ class DataController extends Controller
                     $item->pointer_name = $itemData['pointer_name'];
                     $item->offset_x = $itemData['offset']['x'];
                     $item->offset_y = $itemData['offset']['y'];
-
                     $item->save();
 
                     foreach ($itemData['section'] as $sectionData) {
                         $section = new Section();
                         $section->item_id = $item->id;
                         $section->location = $sectionData['location'];
-
                         $section->items_dsc = json_encode($sectionData['items_dsc']);
                         $section->save();
                     }
@@ -137,9 +133,42 @@ class DataController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while processing your request',
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+
+    private function saveBase64Image($base64Image, $folder)
+    {
+        $directoryPath = public_path('uploads/' . $folder);
+
+        if (!file_exists($directoryPath)) {
+            mkdir($directoryPath, 0755, true); 
+        }
+
+        if (strpos($base64Image, ';base64,') !== false) {
+            $imageParts = explode(";base64,", $base64Image);
+            $base64Image = $imageParts[1]; 
+        }
+
+        $imageType = isset($imageParts[0]) && strpos($imageParts[0], 'image/') !== false
+            ? explode('/', $imageParts[0])[1] 
+            : 'png'; 
+
+        $imageBase64 = base64_decode($base64Image);
+
+        if ($imageBase64 === false) {
+            throw new Exception('Invalid base64 image data');
+        }
+
+        $fileName = Str::uuid() . '.' . $imageType;
+
+        $filePath = 'uploads/' . $folder . '/' . $fileName;
+
+        file_put_contents(public_path($filePath), $imageBase64);
+
+        return $filePath; 
     }
 
 
