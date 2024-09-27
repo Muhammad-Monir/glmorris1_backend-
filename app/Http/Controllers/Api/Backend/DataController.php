@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api\Backend;
 use Exception;
 use App\Models\Item;
 use App\Models\Room;
-use App\Helper\Helper;
 use App\Models\Section;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
@@ -15,39 +14,143 @@ use Illuminate\Support\Facades\Validator;
 
 class DataController extends Controller
 {
+    public function index(Request $request)
+    {
+        try {
+            $locationId = $request->query('location_id');
+
+            if (!$locationId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'location_id is required',
+                ], 400);
+            }
+
+            $rooms = Room::where('location_id', $locationId)->get();
+
+            if ($rooms->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No rooms found for the specified location_id',
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $rooms,
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while fetching the rooms',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getItemsByRoomId(Request $request)
+    {
+        try {
+            $roomId = $request->query('room_id');
+
+            if (!$roomId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'room_id is required',
+                ], 400);
+            }
+
+            $items = Item::where('room_id', $roomId)->get();
+
+            if ($items->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No items found for the specified room_id',
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $items,
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while fetching the items',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getSectionsByItemId(Request $request)
+    {
+        try {
+            $itemId = $request->query('item_id');
+
+            if (!$itemId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'item_id is required',
+                ], 400);
+            }
+
+            $sections = Section::where('item_id', $itemId)->get();
+
+            if ($sections->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No sections found for the specified item_id',
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $sections,
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while fetching the sections',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+
+
     public function show($id)
     {
         try {
 
             $room = Room::with(['items.sections'])->findOrFail($id);
 
-            $response = [
-                'id' => $room->id,
-                'location_id' => $room->location_id,
-                'room_name' => $room->room_name,
-                'photo' => $room->photo,
-                'items' => $room->items->map(function ($item) {
-                    return [
-                        'id' => $item->id,
-                        'pointer_name' => $item->pointer_name,
-                        'offset' => [
-                            'x' => $item->offset_x,
-                            'y' => $item->offset_y,
-                        ],
-                        'sections' => $item->sections->map(function ($section) {
-                            return [
-                                'id' => $section->id,
-                                'location' => $section->location,
-                                'items_dsc' => json_decode($section->items_dsc),
-                            ];
-                        })
-                    ];
-                })
-            ];
+            // $response = [
+            //     'id' => $room->id,
+            //     'location_id' => $room->location_id,
+            //     'room_name' => $room->room_name,
+            //     'photo' => $room->photo,
+            //     'items' => $room->items->map(function ($item) {
+            //         return [
+            //             'id' => $item->id,
+            //             'pointer_name' => $item->pointer_name,
+            //             'offset' => [
+            //                 'x' => $item->offset_x,
+            //                 'y' => $item->offset_y,
+            //             ],
+            //             'sections' => $item->sections->map(function ($section) {
+            //                 return [
+            //                     'id' => $section->id,
+            //                     'location' => $section->location,
+            //                     'items_dsc' => json_decode($section->items_dsc),
+            //                 ];
+            //             })
+            //         ];
+            //     })
+            // ];
 
             return response()->json([
                 'success' => true,
-                'data' => $response,
+                'data' => $room,
             ], 200);
         } catch (Exception $e) {
             return response()->json([
@@ -66,11 +169,11 @@ class DataController extends Controller
                 'message' => 'Request body is empty. Please provide data.',
             ], 400);
         }
-        
+
         $validator = Validator::make($request->all(), [
             '*.location_id' => 'required|exists:locations,id',
             '*.room_name' => 'required|string|max:255',
-            '*.photo' => 'nullable|string', 
+            '*.photo' => 'required|string',
             '*.items' => 'required|array',
             '*.items.*.pointer_name' => 'required|string|max:255',
             '*.items.*.offset.x' => 'required|numeric',
@@ -144,17 +247,17 @@ class DataController extends Controller
         $directoryPath = public_path('uploads/' . $folder);
 
         if (!file_exists($directoryPath)) {
-            mkdir($directoryPath, 0755, true); 
+            mkdir($directoryPath, 0755, true);
         }
 
         if (strpos($base64Image, ';base64,') !== false) {
             $imageParts = explode(";base64,", $base64Image);
-            $base64Image = $imageParts[1]; 
+            $base64Image = $imageParts[1];
         }
 
         $imageType = isset($imageParts[0]) && strpos($imageParts[0], 'image/') !== false
-            ? explode('/', $imageParts[0])[1] 
-            : 'png'; 
+            ? explode('/', $imageParts[0])[1]
+            : 'png';
 
         $imageBase64 = base64_decode($base64Image);
 
@@ -168,7 +271,7 @@ class DataController extends Controller
 
         file_put_contents(public_path($filePath), $imageBase64);
 
-        return $filePath; 
+        return $filePath;
     }
 
 
@@ -177,7 +280,7 @@ class DataController extends Controller
         $validator = Validator::make($request->all(), [
             'location_id' => 'required|exists:locations,id',
             'room_name' => 'required|string|max:255',
-            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:4096',
+            'photo' => 'nullable|string',
             'items' => 'required|array',
             'items.*.id' => 'nullable|exists:items,id',
             'items.*.pointer_name' => 'required|string|max:255',
@@ -204,16 +307,14 @@ class DataController extends Controller
             $room->location_id = $request->location_id;
             $room->room_name = $request->room_name;
 
-            if ($request->hasFile('photo')) {
-                $randomString = (string) Str::uuid();
-                $roomPhoto = Helper::fileUpload($request->file('photo'), 'rooms', $request->photo->getClientOriginalName() . '_' . $randomString);
-                $room->photo = $roomPhoto;
+            if (isset($request->photo) && $request->photo) {
+                $room->photo = $this->saveBase64Image($request->photo, 'rooms');
             }
 
             $room->save();
 
-            foreach ($request->items as $itemData) {
 
+            foreach ($request->items as $itemData) {
                 if (isset($itemData['id'])) {
                     $item = Item::findOrFail($itemData['id']);
                 } else {
@@ -245,7 +346,7 @@ class DataController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Updated successfully',
+                'message' => 'Room and items updated successfully',
             ], 200);
         } catch (Exception $e) {
             DB::rollBack();

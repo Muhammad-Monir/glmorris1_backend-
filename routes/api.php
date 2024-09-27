@@ -52,6 +52,11 @@ Route::group(['middleware' => 'jwt.auth'], function() {
     Route::post('/data/store', [DataController::class, 'store']);
     Route::post('/data/update/{id}', [DataController::class, 'update']);
     Route::delete('/data/delete/{id}', [DataController::class, 'destroy']);
+
+    Route::get('/rooms', [DataController::class, 'index']);
+    Route::get('/items', [DataController::class, 'getItemsByRoomId']);
+    Route::get('/sections', [DataController::class, 'getSectionsByItemId']);
+
 });
 
 
