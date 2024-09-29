@@ -400,6 +400,7 @@ class DataController extends Controller
             $rooms = Room::whereHas('items.sections', function ($query) use ($searchTerm) {
                 $query->where('location', 'LIKE', "%{$searchTerm}%")
                     ->orWhere('items_dsc', 'LIKE', "%{$searchTerm}%");
+                    
             })->with(['items' => function ($query) use ($searchTerm) {
                 $query->where('pointer_name', 'LIKE', "%{$searchTerm}%")
                     ->orWhereHas('sections', function ($sectionQuery) use ($searchTerm) {
@@ -409,12 +410,13 @@ class DataController extends Controller
                         $sectionQuery->where('location', 'LIKE', "%{$searchTerm}%")
                             ->orWhere('items_dsc', 'LIKE', "%{$searchTerm}%");
                     }]);
+
             }])->get();
 
             if ($rooms->isEmpty()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No results found for the specified query',
+                    'message' => 'No results found for the specified word',
                 ], 404);
             }
 
