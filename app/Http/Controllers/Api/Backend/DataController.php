@@ -6,6 +6,7 @@ use Exception;
 use App\Models\Item;
 use App\Models\Room;
 use App\Models\Section;
+use App\Models\Location;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -397,23 +398,24 @@ class DataController extends Controller
 
             $searchTerm = $request->input('query');
 
-            $rooms = Room::whereHas('items.sections', function ($query) use ($searchTerm) {
+            $locations = Location::whereHas('rooms.items.sections', function ($query) use ($searchTerm) {
                 $query->where('location', 'LIKE', "%{$searchTerm}%")
                     ->orWhere('items_dsc', 'LIKE', "%{$searchTerm}%");
-                    
-            })->with(['items' => function ($query) use ($searchTerm) {
-                $query->where('pointer_name', 'LIKE', "%{$searchTerm}%")
-                    ->orWhereHas('sections', function ($sectionQuery) use ($searchTerm) {
-                        $sectionQuery->where('location', 'LIKE', "%{$searchTerm}%")
+            })
+                ->with(['rooms' => function ($roomQuery) use ($searchTerm) {
+                    $roomQuery->whereHas('items.sections', function ($query) use ($searchTerm) {
+                        $query->where('location', 'LIKE', "%{$searchTerm}%")
                             ->orWhere('items_dsc', 'LIKE', "%{$searchTerm}%");
-                    })->with(['sections' => function ($sectionQuery) use ($searchTerm) {
-                        $sectionQuery->where('location', 'LIKE', "%{$searchTerm}%")
-                            ->orWhere('items_dsc', 'LIKE', "%{$searchTerm}%");
+                    })->with(['items' => function ($itemQuery) use ($searchTerm) {
+                        $itemQuery->where('pointer_name', 'LIKE', "%{$searchTerm}%")
+                            ->orWhereHas('sections', function ($sectionQuery) use ($searchTerm) {
+                                $sectionQuery->where('location', 'LIKE', "%{$searchTerm}%")
+                                    ->orWhere('items_dsc', 'LIKE', "%{$searchTerm}%");
+                            })->with('sections');
                     }]);
+                }])->get();
 
-            }])->get();
-
-            if ($rooms->isEmpty()) {
+            if ($locations->isEmpty()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No results found for the specified word',
@@ -422,7 +424,7 @@ class DataController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $rooms,
+                'data' => $locations,
             ], 200);
         } catch (Exception $e) {
             return response()->json([
