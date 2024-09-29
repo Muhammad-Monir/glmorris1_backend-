@@ -57,6 +57,7 @@ Route::group(['middleware' => 'jwt.auth'], function() {
     Route::get('/items', [DataController::class, 'getItemsByRoomId']);
     Route::get('/sections', [DataController::class, 'getSectionsByItemId']);
 
+    Route::get('/search', [DataController::class, 'search']);
 });
 
 

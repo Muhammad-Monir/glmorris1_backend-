@@ -379,4 +379,55 @@ class DataController extends Controller
             ], 500);
         }
     }
+
+    public function search(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'query' => 'required|string|max:255',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Search query is required',
+                    'error' => $validator->errors(),
+                ], 400);
+            }
+
+            $searchTerm = $request->input('query');
+
+            $rooms = Room::whereHas('items.sections', function ($query) use ($searchTerm) {
+                $query->where('location', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('items_dsc', 'LIKE', "%{$searchTerm}%");
+            })->with(['items' => function ($query) use ($searchTerm) {
+                $query->where('pointer_name', 'LIKE', "%{$searchTerm}%")
+                    ->orWhereHas('sections', function ($sectionQuery) use ($searchTerm) {
+                        $sectionQuery->where('location', 'LIKE', "%{$searchTerm}%")
+                            ->orWhere('items_dsc', 'LIKE', "%{$searchTerm}%");
+                    })->with(['sections' => function ($sectionQuery) use ($searchTerm) {
+                        $sectionQuery->where('location', 'LIKE', "%{$searchTerm}%")
+                            ->orWhere('items_dsc', 'LIKE', "%{$searchTerm}%");
+                    }]);
+            }])->get();
+
+            if ($rooms->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No results found for the specified query',
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $rooms,
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while searching',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
