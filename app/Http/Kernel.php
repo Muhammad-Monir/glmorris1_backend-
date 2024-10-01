@@ -2,6 +2,9 @@
 
 namespace App\Http;
 
+use Illuminate\Http\Request;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Foundation\Http\Kernel as HttpKernel;
 
 class Kernel extends HttpKernel
@@ -40,7 +43,9 @@ class Kernel extends HttpKernel
 
         'api' => [
             // \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
-            \Illuminate\Routing\Middleware\ThrottleRequests::class.':api',
+            \Illuminate\Routing\Middleware\ThrottleRequests::class . ':api',
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            'throttle:60,1', // Default API throttle (60 requests per minute)
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],
     ];
@@ -68,6 +73,18 @@ class Kernel extends HttpKernel
     protected $routeMiddleware = [
         'jwt.auth' => \Tymon\JWTAuth\Http\Middleware\Authenticate::class,
         'jwt.refresh' => \Tymon\JWTAuth\Http\Middleware\RefreshToken::class,
+        'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
+        'bindings' => \Illuminate\Routing\Middleware\SubstituteBindings::class,
     ];
-    
+
+    protected function configureRateLimiting()
+{
+    // RateLimiter::for('search-limit', function (Request $request) {
+    //     return Limit::perMinute(100)->by($request->ip()); 
+    // });
+
+    RateLimiter::for('search-limit', function (Request $request) {
+        return Limit::none(); 
+    });
+}
 }

@@ -36,7 +36,7 @@ Route::get('/auth/{provider}/redirect', [SocialAuthController::class, 'redirectT
 Route::get('/auth/{provider}/callback', [SocialAuthController::class, 'handleProviderCallback']);
 
 
-Route::group(['middleware' => 'jwt.auth'], function() {
+Route::group(['middleware' => 'jwt.auth'], function () {
 
     // ROUTE FOR USER PROFILE UPDATE
     Route::get('/profile/show', [AuthController::class, 'show']);
@@ -58,7 +58,9 @@ Route::group(['middleware' => 'jwt.auth'], function() {
     Route::get('/sections', [DataController::class, 'getSectionsByItemId']);
 
     Route::get('/search', [DataController::class, 'search']);
+
+    // Route::middleware('throttle:search-limit')->group(function () {
+    //     Route::get('/search', [DataController::class, 'search']);
+    // });
+    Route::post('/section/update', [DataController::class, 'updateSection']);
 });
-
-
-

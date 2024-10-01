@@ -417,9 +417,9 @@ class DataController extends Controller
 
             if ($locations->isEmpty()) {
                 return response()->json([
-                    'success' => false,
-                    'message' => 'No results found for the specified word',
-                ], 404);
+                    'success' => true,
+                    'data' => [],  
+                ], 200);
             }
 
             return response()->json([
@@ -430,6 +430,60 @@ class DataController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while searching',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function updateSection(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'item_id' => 'required|exists:items,id',
+            'section_id' => 'nullable|exists:sections,id',
+            'location' => 'required|string|max:255',
+            'items_dsc' => 'required|array',
+            'items_dsc.*' => 'required|string|max:255'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'error' => $validator->errors()->first(),
+                'status' => false,
+            ], 400);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $sectionData = [
+                'item_id' => $request->item_id,
+                'location' => $request->location,
+                'items_dsc' => json_encode($request->items_dsc)
+            ];
+
+            if ($request->section_id) {
+                $section = Section::findOrFail($request->section_id);
+                $section->update($sectionData);
+                $message = 'Section updated successfully';
+            } else {
+                $section = Section::create($sectionData);
+                $message = 'Section created successfully';
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'data' => $section,
+                'message' => $message,
+            ], 200);
+        } catch (Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while saving the section',
                 'error' => $e->getMessage(),
             ], 500);
         }
