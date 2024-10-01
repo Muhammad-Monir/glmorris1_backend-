@@ -418,7 +418,7 @@ class DataController extends Controller
             if ($locations->isEmpty()) {
                 return response()->json([
                     'success' => true,
-                    'data' => [],  
+                    'data' => [],
                 ], 200);
             }
 
@@ -435,55 +435,106 @@ class DataController extends Controller
         }
     }
 
+    // public function updateSection(Request $request)
+    // {
+    //     $validator = Validator::make($request->all(), [
+    //         'section_id' => 'required|exists:sections,id',
+    //         'item_id' => 'required|exists:items,id',
+    //         'location' => 'nullable|string|max:255',
+    //         'items_dsc' => 'nullable|array',
+    //         'items_dsc.*' => 'nullable|string|max:255',
+    //     ]);
+
+    //     if ($validator->fails()) {
+    //         return response()->json([
+    //             'error' => $validator->errors()->first(),
+    //             'status' => false,
+    //         ], 400);
+    //     }
+
+    //     try {
+    //         DB::beginTransaction();
+
+    //         $section = Section::findOrFail($request->section_id);
+
+    //         $sectionData = [
+    //             'item_id' => $request->item_id,
+    //             'location' => $request->location,
+    //             'items_dsc' => json_encode($request->items_dsc),
+    //         ];
+
+    //         $section->update($sectionData);
+
+    //         DB::commit();
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'data' => $section,
+    //             'message' => 'Section updated successfully',
+    //         ], 200);
+    //     } catch (Exception $e) {
+    //         DB::rollBack();
+
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'An error occurred while updating the section',
+    //             'error' => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
+
     public function updateSection(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'item_id' => 'required|exists:items,id',
-            'section_id' => 'nullable|exists:sections,id',
-            'location' => 'required|string|max:255',
-            'items_dsc' => 'required|array',
-            'items_dsc.*' => 'required|string|max:255'
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'error' => $validator->errors()->first(),
-                'status' => false,
-            ], 400);
-        }
-
         try {
+            $validator = Validator::make($request->all(), [
+                'item_id' => 'required|exists:items,id',
+                // 'sections' => 'required|array',
+                'sections.*.location' => 'nullable|string|max:255',
+                'sections.*.items_dsc' => 'nullable|array',
+                'sections.*.section_id' => 'nullable|exists:sections,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => $validator->errors()->first(),
+                    'status' => false,
+                ], 400);
+            }
+
             DB::beginTransaction();
 
-            $sectionData = [
-                'item_id' => $request->item_id,
-                'location' => $request->location,
-                'items_dsc' => json_encode($request->items_dsc)
-            ];
+            $itemId = $request->input('item_id');
+            $sections = $request->input('sections');
 
-            if ($request->section_id) {
-                $section = Section::findOrFail($request->section_id);
-                $section->update($sectionData);
-                $message = 'Section updated successfully';
-            } else {
-                $section = Section::create($sectionData);
-                $message = 'Section created successfully';
+            foreach ($sections as $sectionData) {
+                if (isset($sectionData['section_id'])) {
+                    $section = Section::find($sectionData['section_id']);
+                    if ($section) {
+                        $section->location = $sectionData['location'];
+                        $section->items_dsc = json_encode($sectionData['items_dsc']);
+                        $section->save();
+                    }
+                } else {
+                    $section = new Section();
+                    $section->item_id = $itemId;
+                    $section->location = $sectionData['location'];
+                    $section->items_dsc = json_encode($sectionData['items_dsc']);
+                    $section->save();
+                }
             }
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'data' => $section,
-                'message' => $message,
+                'message' => 'Sections updated or added successfully',
             ], 200);
         } catch (Exception $e) {
-
             DB::rollBack();
 
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while saving the section',
+                'message' => 'An error occurred while updating or adding sections',
                 'error' => $e->getMessage(),
             ], 500);
         }
