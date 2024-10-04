@@ -396,21 +396,21 @@ class DataController extends Controller
                 ], 400);
             }
 
-            $searchTerm = $request->input('query');
+            $searchTerm = strtolower($request->input('query'));
 
             $locations = Location::whereHas('rooms.items.sections', function ($query) use ($searchTerm) {
-                $query->where('location', 'LIKE', "%{$searchTerm}%")
-                    ->orWhere('items_dsc', 'LIKE', "%{$searchTerm}%");
+                $query->whereRaw('LOWER(location) LIKE ?', ["%{$searchTerm}%"])
+                    ->orWhereRaw('LOWER(items_dsc) LIKE ?', ["%{$searchTerm}%"]);
             })
                 ->with(['rooms' => function ($roomQuery) use ($searchTerm) {
                     $roomQuery->whereHas('items.sections', function ($query) use ($searchTerm) {
-                        $query->where('location', 'LIKE', "%{$searchTerm}%")
-                            ->orWhere('items_dsc', 'LIKE', "%{$searchTerm}%");
+                        $query->whereRaw('LOWER(location) LIKE ?', ["%{$searchTerm}%"])
+                            ->orWhereRaw('LOWER(items_dsc) LIKE ?', ["%{$searchTerm}%"]);
                     })->with(['items' => function ($itemQuery) use ($searchTerm) {
-                        $itemQuery->where('pointer_name', 'LIKE', "%{$searchTerm}%")
+                        $itemQuery->whereRaw('LOWER(pointer_name) LIKE ?', ["%{$searchTerm}%"])
                             ->orWhereHas('sections', function ($sectionQuery) use ($searchTerm) {
-                                $sectionQuery->where('location', 'LIKE', "%{$searchTerm}%")
-                                    ->orWhere('items_dsc', 'LIKE', "%{$searchTerm}%");
+                                $sectionQuery->whereRaw('LOWER(location) LIKE ?', ["%{$searchTerm}%"])
+                                    ->orWhereRaw('LOWER(items_dsc) LIKE ?', ["%{$searchTerm}%"]);
                             })->with('sections');
                     }]);
                 }])->get();
@@ -434,6 +434,7 @@ class DataController extends Controller
             ], 500);
         }
     }
+
 
     // public function updateSection(Request $request)
     // {
@@ -483,6 +484,7 @@ class DataController extends Controller
     //     }
     // }
 
+
     public function updateSection(Request $request)
     {
         try {
@@ -527,7 +529,7 @@ class DataController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Sections updated or added successfully',
+                'message' => 'Sections updated successfully',
             ], 200);
         } catch (Exception $e) {
             DB::rollBack();
