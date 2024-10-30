@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class DataController extends Controller
 {
@@ -116,8 +117,6 @@ class DataController extends Controller
             ], 500);
         }
     }
-
-
 
     public function show($id)
     {
@@ -242,7 +241,6 @@ class DataController extends Controller
         }
     }
 
-
     private function saveBase64Image($base64Image, $folder)
     {
         $directoryPath = public_path('uploads/' . $folder);
@@ -274,7 +272,6 @@ class DataController extends Controller
 
         return $filePath;
     }
-
 
     public function update(Request $request, $id)
     {
@@ -359,7 +356,6 @@ class DataController extends Controller
             ], 500);
         }
     }
-
 
     public function destroy($id)
     {
@@ -537,6 +533,94 @@ class DataController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while updating or adding sections',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function SectionRoomUpdate(Request $request, $id)
+    {
+        // Validation for the data structure
+        $validator = Validator::make($request->all(), [
+            'section_id' => 'nullable|exists:sections,id',
+            'item_id' => 'nullable|exists:items,id',
+            'location' => 'required|string|max:255',
+            'items_dsc' => 'required|array',
+            'items_dsc.*' => 'required|string|max:255'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'error' => $validator->errors()->first(),
+                'status' => false,
+            ], 400);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Check if Room exists
+            $room = Room::find($id);
+            if (!$room) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Room not found with the provided ID',
+                ], 404);
+            }
+
+            // Update room properties if needed
+            $room->location_id = $request->location_id;
+            $room->room_name = $request->room_name;
+
+            if (isset($request->photo) && $request->photo) {
+                $room->photo = $this->saveBase64Image($request->photo, 'rooms');
+            }
+
+            $room->save();
+
+            // Update or create Item
+            if (isset($request->item_id)) {
+                $item = Item::findOrFail($request->item_id);
+            } else {
+                $item = new Item();
+                $item->room_id = $room->id;
+            }
+
+            $item->pointer_name = $request->pointer_name ?? 'Default Pointer Name';
+            $item->save();
+
+            // Update or create Section
+            if (isset($request->section_id)) {
+                $section = Section::findOrFail($request->section_id);
+            } else {
+                $section = new Section();
+                $section->item_id = $item->id;
+            }
+
+            $section->location = $request->location;
+            $section->items_dsc = json_encode($request->items_dsc);
+            $section->save();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Room, item, and section updated successfully',
+            ], 200);
+        } catch (ModelNotFoundException $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred: Room, item, or section not found',
+                'error' => $e->getMessage(),
+            ], 404);
+        } catch (Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating the room, item, and section',
                 'error' => $e->getMessage(),
             ], 500);
         }

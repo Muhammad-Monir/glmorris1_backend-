@@ -59,8 +59,7 @@ Route::group(['middleware' => 'jwt.auth'], function () {
 
     Route::get('/search', [DataController::class, 'search']);
 
-    // Route::middleware('throttle:search-limit')->group(function () {
-    //     Route::get('/search', [DataController::class, 'search']);
-    // });
     Route::post('/section/update', [DataController::class, 'updateSection']);
+
+    Route::post('/room/section/update/{id}', [DataController::class, 'SectionRoomUpdate']);
 });
